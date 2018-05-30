@@ -1,0 +1,37 @@
+{
+  "name": "arma-addons-sync",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "bin": "dist/cli.js",
+  "scripts": {
+    "start": "npm-run-all --parallel watch:server watch:build",
+    "watch:server": "nodemon --inspect-brk --watch ./dist ./dist/cli.js",
+    "watch:build": "webpack --watch --devtool=source-code --mode=development",
+    "build": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github:Nitro-N/arma-addons-sync"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "devDependencies": {
+    "@types/es6-promise": "^3.3.0",
+    "@types/klaw": "^2.1.1",
+    "@types/make-dir": "^1.0.3",
+    "@types/node": "^9.4.6",
+    "@types/request": "^2.47.0",
+    "banner-webpack-plugin": "^0.2.3",
+    "get-uri": "^2.0.1",
+    "klaw": "^2.1.1",
+    "make-dir": "^1.2.0",
+    "nodemon": "^1.17.1",
+    "npm-run-all": "^4.1.2",
+    "ts-loader": "^4.0.0",
+    "typescript": "^2.7.2",
+    "webpack": "^4.0.1",
+    "webpack-cli": "^2.0.9",
+    "xml-node": "0.0.1"
+  }
+}

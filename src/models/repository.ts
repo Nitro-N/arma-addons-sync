@@ -1,0 +1,107 @@
+import * as path from 'path';
+import Downloader from '../utils/downloader';
+import Archivator from '../utils/archivator';
+import * as os from 'os';
+import HashGenerator from '../utils/hash-generator';
+import * as fs from 'fs';
+import Directory from './directory';
+import SyncFile from './sync-file';
+import Converter from '../utils/converter';
+import { IRepositoryConfig } from './config';
+
+const XmlParser = require('xml-node').XmlParser;
+
+export default class Repository {
+    public configUrl: string;
+    public targetDir: string;
+    public tempDir: string;
+    public rootUrl: string;
+    private checkoutSize: number = 0;
+    private checkoutedSize: number = 0;
+    private directories: Map<string, Directory> = new Map();
+
+    constructor(config: IRepositoryConfig) {
+        this.configUrl = config.url;
+        this.targetDir = config.targetDir;
+        this.tempDir = path.join(os.tmpdir(), HashGenerator.generate(this.configUrl));
+        this.rootUrl = this.configUrl.slice(0, this.configUrl.lastIndexOf('/'));
+    }
+
+    sync(): Promise<void> {
+        return this.downloadConfigFile(this.configUrl)
+            .then((configFilePath) => this.unpackConfigFile(configFilePath))
+            .then((metaFilesDirPath) => this.parseMetaData(metaFilesDirPath))
+            .then((directories: Map<string, Directory>) => this.syncDirectories(directories));
+    }
+
+    private downloadConfigFile(url: string): Promise<string> {
+        return Downloader.download(url, this.tempDir)
+    }
+
+    private unpackConfigFile(filePath: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            let metaFileName = 'Addons.xml';
+            Archivator.unpack(filePath, this.tempDir, path.join(path.basename(filePath, '.7z'), metaFileName))
+                .then(() => {
+                    resolve(path.join(this.tempDir, metaFileName));
+                }, reject)
+        })
+    }
+
+    private parseMetaData(filePath: string) {
+        return new Promise((resolve, reject) => {
+            XmlParser.toNode(fs.readFileSync(filePath).toString(), (err: any, node: any) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else {
+                    node.getDescendants('Addons')
+                        .forEach((file: any) => {
+                            const directoryName = file.getChild('Path').toString().split('\\')[0];
+                            let directory: Directory = this.directories.get(directoryName);
+                            if (!directory) {
+                                directory = new Directory(this, directoryName);
+                                this.directories.set(directoryName, directory);
+                            }
+                            directory.addRemoteFile(new SyncFile(
+                                directory,
+                                path.join(
+                                    ...file.getChild('Url').toString()
+                                        .replace('.7z', '').split('/')
+                                        .filter((v: string, i: number) => i)
+                                ),
+                                file.getChild('Md5').toString(),
+                                +file.getChild('Size').toString(),
+                                file.getChild('Url').toString()
+                            ));
+                        });
+                    resolve(this.directories);
+                }
+            })
+        });
+    }
+
+    private syncDirectories(directories: Map<string, Directory>): Promise<void> {
+        const promises: Promise<any>[] = [];
+
+        directories.forEach(directory => {
+            directory.on('file-checkout', file => {
+                this.checkoutSize += file.size;
+                this.logProgress();
+            });
+            directory.on('file-checkouted', file => {
+                this.checkoutedSize += file.size;
+                this.logProgress();
+            });
+            promises.push(directory.scan().then(() => directory.sync()))
+        });
+        return Promise.all(promises).then(() => {});
+    }
+
+    logProgress() {
+        const checkoutedSizeFormated = Converter.formatBytes(this.checkoutedSize, 2);
+        const checkoutSizeFormated = Converter.formatBytes(this.checkoutSize, 2);
+        const percentages = ((this.checkoutedSize/this.checkoutSize)*100).toFixed(2);
+        console.log('CHECKOUT PROGRESS', `${checkoutedSizeFormated}/${checkoutSizeFormated} ${percentages}%`);
+    }
+}
