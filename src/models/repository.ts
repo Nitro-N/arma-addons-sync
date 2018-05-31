@@ -1,20 +1,20 @@
-import * as path from 'path';
-import Downloader from '../utils/downloader';
-import Archivator from '../utils/archivator';
-import * as os from 'os';
-import HashGenerator from '../utils/hash-generator';
-import * as fs from 'fs';
-import Directory from './directory';
-import SyncFile from './sync-file';
-import Converter from '../utils/converter';
-import { IRepositoryConfig } from './config';
+import * as path from "path";
+import Downloader from "../utils/downloader";
+import Archivator from "../utils/archivator";
+import * as os from "os";
+import HashGenerator from "../utils/hash-generator";
+import * as fs from "fs";
+import Directory from "./directory";
+import SyncFile from "./sync-file";
+import Converter from "../utils/converter";
+import Config, { IRepositoryConfig } from "./config";
 
-const XmlParser = require('xml-node').XmlParser;
+const XmlParser = require("xml-node").XmlParser;
 
 export default class Repository {
     public configUrl: string;
-    public targetDir: string;
-    public tempDir: string;
+    public targetDirPath: string;
+    public tempDirPath: string;
     public rootUrl: string;
     private checkoutSize: number = 0;
     private checkoutedSize: number = 0;
@@ -22,12 +22,12 @@ export default class Repository {
 
     constructor(config: IRepositoryConfig) {
         this.configUrl = config.url;
-        this.targetDir = config.targetDir;
-        this.tempDir = path.join(os.tmpdir(), HashGenerator.generate(this.configUrl));
-        this.rootUrl = this.configUrl.slice(0, this.configUrl.lastIndexOf('/'));
+        this.targetDirPath = config.targetDir;
+        this.tempDirPath = path.join(Config.tempFolderPath, HashGenerator.generate(this.configUrl));
+        this.rootUrl = this.configUrl.slice(0, this.configUrl.lastIndexOf("/"));
     }
 
-    sync(): Promise<void> {
+    public sync(): Promise<void> {
         return this.downloadConfigFile(this.configUrl)
             .then((configFilePath) => this.unpackConfigFile(configFilePath))
             .then((metaFilesDirPath) => this.parseMetaData(metaFilesDirPath))
@@ -35,17 +35,17 @@ export default class Repository {
     }
 
     private downloadConfigFile(url: string): Promise<string> {
-        return Downloader.download(url, this.tempDir)
+        return Downloader.download(url, this.tempDirPath);
     }
 
     private unpackConfigFile(filePath: string): Promise<string> {
         return new Promise((resolve, reject) => {
-            let metaFileName = 'Addons.xml';
-            Archivator.unpack(filePath, this.tempDir, path.join(path.basename(filePath, '.7z'), metaFileName))
+            const metaFileName = "Addons.xml";
+            Archivator.unpack(filePath, this.tempDirPath, path.join(path.basename(filePath, ".7z"), metaFileName))
                 .then(() => {
-                    resolve(path.join(this.tempDir, metaFileName));
-                }, reject)
-        })
+                    resolve(path.join(this.tempDirPath, metaFileName));
+                }, reject);
+        });
     }
 
     private parseMetaData(filePath: string) {
@@ -55,9 +55,9 @@ export default class Repository {
                     console.error(err);
                     reject(err);
                 } else {
-                    node.getDescendants('Addons')
+                    node.getDescendants("Addons")
                         .forEach((file: any) => {
-                            const directoryName = file.getChild('Path').toString().split('\\')[0];
+                            const directoryName = file.getChild("Path").toString().split("\\")[0];
                             let directory: Directory = this.directories.get(directoryName);
                             if (!directory) {
                                 directory = new Directory(this, directoryName);
@@ -66,42 +66,42 @@ export default class Repository {
                             directory.addRemoteFile(new SyncFile(
                                 directory,
                                 path.join(
-                                    ...file.getChild('Url').toString()
-                                        .replace('.7z', '').split('/')
-                                        .filter((v: string, i: number) => i)
+                                    ...file.getChild("Url").toString()
+                                        .replace(".7z", "").split("/")
+                                        .filter((v: string, i: number) => i),
                                 ),
-                                file.getChild('Md5').toString(),
-                                +file.getChild('Size').toString(),
-                                file.getChild('Url').toString()
+                                file.getChild("Md5").toString(),
+                                +file.getChild("Size").toString(),
+                                file.getChild("Url").toString(),
                             ));
                         });
                     resolve(this.directories);
                 }
-            })
+            });
         });
     }
 
-    private syncDirectories(directories: Map<string, Directory>): Promise<void> {
-        const promises: Promise<any>[] = [];
+    private syncDirectories(directories: Map<string, Directory>): Promise<any> {
+        const promises: Array<Promise<any>> = [];
 
-        directories.forEach(directory => {
-            directory.on('file-checkout', file => {
+        directories.forEach((directory) => {
+            directory.on("file-checkout", (file) => {
                 this.checkoutSize += file.size;
                 this.logProgress();
             });
-            directory.on('file-checkouted', file => {
+            directory.on("file-checkouted", (file) => {
                 this.checkoutedSize += file.size;
                 this.logProgress();
             });
-            promises.push(directory.scan().then(() => directory.sync()))
+            promises.push(directory.scan().then(() => directory.sync()));
         });
-        return Promise.all(promises).then(() => {});
+        return Promise.all(promises);
     }
 
-    logProgress() {
+    private logProgress() {
         const checkoutedSizeFormated = Converter.formatBytes(this.checkoutedSize, 2);
         const checkoutSizeFormated = Converter.formatBytes(this.checkoutSize, 2);
-        const percentages = ((this.checkoutedSize/this.checkoutSize)*100).toFixed(2);
-        console.log('CHECKOUT PROGRESS', `${checkoutedSizeFormated}/${checkoutSizeFormated} ${percentages}%`);
+        const percentages = ((this.checkoutedSize / this.checkoutSize) * 100).toFixed(2);
+        console.log("CHECKOUT PROGRESS", `${checkoutedSizeFormated}/${checkoutSizeFormated} ${percentages}%`);
     }
 }

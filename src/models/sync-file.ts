@@ -1,20 +1,20 @@
-import Directory from './directory';
-import * as path from 'path';
-import * as fs from 'fs';
-import HashGenerator from '../utils/hash-generator';
-import Downloader from '../utils/downloader';
-import Archivator from '../utils/archivator';
+import Directory from "./directory";
+import * as pathUtil from "path";
+import * as fs from "fs";
+import HashGenerator from "../utils/hash-generator";
+import Downloader from "../utils/downloader";
+import Archivator from "../utils/archivator";
 import ErrnoException = NodeJS.ErrnoException;
 
 export default class SyncFile {
-    deleted: boolean = false;
-    
+    public deleted: boolean = false;
+
     constructor(private directory: Directory,
-        public path: string, private _md5: string, public size: number, public url: string) {
-        this.md5 = _md5;
+                public path: string, private md5Private: string, public size: number, public url: string) {
+        this.md5 = md5Private;
     }
 
-    equals(file: SyncFile): Promise<boolean> {
+    public equals(file: SyncFile): Promise<boolean> {
         return new Promise((resolve, reject) => {
             Promise.all([this.getMd5Async(), file.getMd5Async()])
                 .then((md5s: string[]) => {
@@ -24,72 +24,71 @@ export default class SyncFile {
         });
     }
 
-    isLocal(): boolean {
+    public isLocal(): boolean {
         return !this.url;
     }
 
     set md5(md5: string) {
-        this._md5 = md5 && md5.toLowerCase();
+        this.md5Private = md5 && md5.toLowerCase() || md5;
     }
 
     get md5() {
-        if (!this._md5 && this.isLocal()) {
-            this.md5 = HashGenerator.generate(fs.readFileSync(this.absolutePath));
-        }
-        return this._md5;
+        return this.md5Private;
     }
 
-    getMd5Async(): Promise<string> {
+    public getMd5Async(): Promise<string> {
         return new Promise((resolve, reject) => {
-            if (!this._md5 && this.isLocal()) {
-                fs.readFile(this.absolutePath, (err: ErrnoException, data: Buffer) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        this.md5 = HashGenerator.generate(data);
-                        resolve(this._md5);
-                    }
-                })
+            if (!this.md5Private && this.isLocal()) {
+                HashGenerator
+                    .generateForFile(this.absolutePath)
+                    .then((md5) => {
+                        this.md5 = md5;
+                        resolve(this.md5);
+                    }, reject);
             } else {
-                resolve(this._md5);
+                resolve(this.md5);
             }
         });
     }
 
     get absolutePath(): string {
-        return path.join(this.directory.path, this.path);
+        return pathUtil.join(this.directory.path, this.path);
     }
 
     get relativePath(): string {
-        return path.join(this.directory.name, this.path);
+        return pathUtil.join(this.directory.name, this.path);
     }
 
-    checkout(): Promise<void> {
+    public checkout(): Promise<void> {
         const repository = this.directory.repository;
-        const tempDir = path.join(repository.tempDir, this.directory.name, path.dirname(this.path));
+        const tempDir = pathUtil.join(repository.tempDirPath, this.directory.name, pathUtil.dirname(this.path));
         return new Promise((resolve, reject) => {
-            Downloader.download([repository.rootUrl, this.url].join('/'), tempDir)
-                .then(downloadedFilePath => {
-                    console.log('DOWNLOADED', this.relativePath);
-                    return Archivator.unpack(downloadedFilePath, path.dirname(this.absolutePath))
+            Downloader.download([repository.rootUrl, this.url].join("/"), tempDir)
+                .then((downloadedFilePath) => {
+                    console.log("DOWNLOADED", this.relativePath);
+                    return Archivator.unpack(downloadedFilePath, pathUtil.dirname(this.absolutePath))
                         .then(() => {
-                            console.log('EXTRACTED', this.relativePath);
+                            console.log("EXTRACTED", this.relativePath);
                             return downloadedFilePath;
                         }, reject);
                 })
-                .then(downloadedFilePath => fs.unlink(downloadedFilePath, (err: ErrnoException) => {
+                .then((downloadedFilePath) => fs.unlink(downloadedFilePath, (err: ErrnoException) => {
                     err ? reject(err) : resolve();
-                }));
-        })
+                }))
+                .then(() => {
+                    this.md5 = null;
+                    return this.getMd5Async();
+                });
+        });
 
     }
 
-    delete(): Promise<void> {
+    public delete(): Promise<void> {
         return new Promise((resolve, reject) => {
             this.deleted = true;
             fs.unlink(this.absolutePath, (err: ErrnoException) => {
                 err ? reject(err) : resolve();
             });
-        })
+        });
     }
 }

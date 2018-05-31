@@ -1,13 +1,12 @@
-import * as child_process from 'child_process';
-import * as path from 'path';
-import Config from '../models/config';
+import * as child_process from "child_process";
+import * as path from "path";
+import Config from "../models/config";
 
 export default class Archivator {
-
-    static unpack(filePath: string, targetDir: string, ...restArgs: string[]): Promise<string>  {
+    public static unpack(filePath: string, targetDir: string, ...restArgs: string[]): Promise<string>  {
         return new Promise((resolve, reject) => {
-            const sZipBin = Config.sZipBinPath ? path.join(Config.sZipBinPath, '7z') : '7z';
-            const args = ['e', filePath, '-y'];
+            const sZipBin = Config.sZipBinPath ? path.join(Config.sZipBinPath, "7z") : "7z";
+            const args = ["e", filePath, "-y"];
             if (targetDir) {
                 args.push(`-o${targetDir}`);
             }
@@ -20,7 +19,7 @@ export default class Archivator {
                         resolve(stdout);
                     }
                 });
-            childProcess.stderr.once('data', reject);
-        })
+            childProcess.stderr.once("data", reject);
+        });
     }
 }
