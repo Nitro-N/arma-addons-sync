@@ -61,6 +61,8 @@ export default class Repository {
                             let directory: Directory = this.directories.get(directoryName);
                             if (!directory) {
                                 directory = new Directory(this, directoryName);
+                                directory.on("file-checkout", this.onFileCheckout);
+                                directory.on("file-checkouted", this.onFileCheckouted);
                                 this.directories.set(directoryName, directory);
                             }
                             directory.addRemoteFile(new SyncFile(
@@ -83,19 +85,22 @@ export default class Repository {
 
     private syncDirectories(directories: Map<string, Directory>): Promise<any> {
         const promises: Array<Promise<any>> = [];
-
+        this.checkoutSize = 0;
+        this.checkoutedSize = 0;
         directories.forEach((directory) => {
-            directory.on("file-checkout", (file) => {
-                this.checkoutSize += file.size;
-                this.logProgress();
-            });
-            directory.on("file-checkouted", (file) => {
-                this.checkoutedSize += file.size;
-                this.logProgress();
-            });
             promises.push(directory.scan().then(() => directory.sync()));
         });
         return Promise.all(promises);
+    }
+
+    private onFileCheckout(syncFile: SyncFile) {
+        this.checkoutSize += syncFile.size;
+        this.logProgress();
+    }
+
+    private onFileCheckouted(syncFile: SyncFile) {
+        this.checkoutedSize += syncFile.size;
+        this.logProgress();
     }
 
     private logProgress() {
