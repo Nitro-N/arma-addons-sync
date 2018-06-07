@@ -7,7 +7,7 @@
   "scripts": {
     "start": "npm-run-all --parallel watch:server watch:build",
     "watch:server": "nodemon --inspect-brk --watch ./dist ./dist/cli.js",
-    "watch:build": "webpack --watch --devtool=source-code --mode=development",
+    "watch:build": "webpack --watch --devtool inline-source-map --mode development",
     "build": "webpack",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,20 +18,23 @@
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@types/es6-promise": "^3.3.0",
+    "@types/fs-extra": "^5.0.2",
+    "@types/ftp": "^0.3.29",
     "@types/klaw": "^2.1.1",
     "@types/make-dir": "^1.0.3",
     "@types/node": "^9.4.6",
     "@types/request": "^2.47.0",
     "banner-webpack-plugin": "^0.2.3",
+    "fs-extra": "^6.0.1",
+    "ftp": "^0.3.10",
     "get-uri": "^2.0.1",
     "klaw": "^2.1.1",
-    "make-dir": "^1.2.0",
-    "nodemon": "^1.17.1",
+    "nodemon": "^1.17.5",
     "npm-run-all": "^4.1.2",
     "ts-loader": "^4.0.0",
-    "typescript": "^2.7.2",
-    "webpack": "^4.0.1",
-    "webpack-cli": "^2.0.9",
+    "typescript": "^2.9.1",
+    "webpack": "^4.11.0",
+    "webpack-cli": "^3.0.2",
     "xml-node": "0.0.1"
   }
 }
