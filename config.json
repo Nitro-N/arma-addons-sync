@@ -1,0 +1,10 @@
+{
+  "sZipBinPath": "C:\\Program Files\\7-Zip",
+  "useMd5Cache": true,
+  "repositories": [
+    {
+      "url": "ftp://armaplayer:1@46.188.49.216:21021/addons/Repo_TSG_A3/Tushino.7z",
+      "targetDir": "D:\\TA"
+    }
+  ]
+}

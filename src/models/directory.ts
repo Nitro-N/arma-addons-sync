@@ -1,7 +1,7 @@
 import Repository from "./repository";
-import SyncFile from "./sync-file";
-import * as fs from "fs";
+import SyncFile, { IFile } from "./sync-file";
 import * as os from "os";
+import * as fs from "fs-extra";
 import HashGenerator from "../utils/hash-generator";
 import * as klaw from "klaw";
 import { Item } from "klaw";
@@ -9,7 +9,7 @@ import * as path from "path";
 import ErrnoException = NodeJS.ErrnoException;
 import { EventEmitter } from "events";
 import Config from "./config";
-import * as makeDir from "make-dir";
+import FileManager from "../utils/file-manager";
 
 export default class Directory extends EventEmitter {
     public path: string;
@@ -17,26 +17,41 @@ export default class Directory extends EventEmitter {
     private tempDirPath: string;
     private remoteFiles: Map<string, SyncFile> = new Map();
     private localFiles: Map<string, SyncFile> = new Map();
-    private md5Cache: Map<string, string> = new Map();
+    private md5Cache: Map<string, IFile> = new Map();
 
     constructor(public repository: Repository, public name: string) {
         super();
         this.path = path.join(repository.targetDirPath, name);
-        this.tempDirPath = path.join(Config.tempFolderPath, HashGenerator.generate(name));
+        this.tempDirPath = path.join(Config.tempFolderPath, HashGenerator.generate(this.path));
         this.cacheFilePath = path.join(this.tempDirPath, "cache.json");
-        makeDir.sync(this.tempDirPath);
+        fs.ensureDirSync(this.tempDirPath);
         if (Config.useMd5Cache) {
             this.readMd5Cache();
         }
     }
 
+    public reset(): void {
+        this.remoteFiles = new Map();
+        this.localFiles = new Map();
+    }
+
+    public remove(): any {
+        fs.remove(this.path);
+    }
+
+    public hasRemoteFiles(): boolean {
+        return this.remoteFiles.size > 0;
+    }
+
     public writeMd5Cache(): void {
         const data: any = {};
         this.localFiles.forEach((syncFile, key) => {
-            if (!syncFile.deleted) {
-                data[key] = syncFile.md5;
-                this.md5Cache.set(key, syncFile.md5);
-            }
+            const value = data[key] = {
+                date: syncFile.date,
+                md5: syncFile.md5,
+                size: syncFile.size,
+            };
+            this.md5Cache.set(key, value);
         });
         fs.writeFileSync(this.cacheFilePath, JSON.stringify(data));
     }
@@ -60,8 +75,14 @@ export default class Directory extends EventEmitter {
                 .on("data", (item: Item) => {
                     if (item.stats.isFile()) {
                         const filePath = path.relative(this.path, item.path);
-                        const md5 = Config.useMd5Cache ? this.md5Cache.get(filePath) : null;
-                        const file = new SyncFile(this, filePath, md5, item.stats.size, null);
+                        const fileCache = Config.useMd5Cache ? this.md5Cache.get(filePath) : null;
+                        let md5 = null;
+                        if (FileManager.validateFileCache(fileCache, item.stats)) {
+                            md5 = fileCache.md5;
+                        } else {
+                            this.md5Cache.delete(filePath);
+                        }
+                        const file = new SyncFile(this, filePath, md5, item.stats.size, item.stats.mtimeMs, null, null);
                         this.localFiles.set(filePath, file);
                     }
                 })
@@ -86,12 +107,14 @@ export default class Directory extends EventEmitter {
     public checkoutFile(file: SyncFile): Promise<void> {
         this.emit("file-checkout", file);
         return file.checkout().then(() => {
+            this.localFiles.set(file.path, new SyncFile(this, file.path, file.md5, null, null, null, null));
             this.emit("file-checkouted", file);
         });
     }
 
     public deleteFile(file: SyncFile): Promise<void> {
         this.emit("delete", file);
+        this.localFiles.delete(file.path);
         return file.delete();
     }
 
@@ -137,6 +160,7 @@ export default class Directory extends EventEmitter {
             all(promises)
             .then((results) => {
                 this.writeMd5Cache();
+                FileManager.removeEmptyDirs(this.path);
                 return results;
             });
     }

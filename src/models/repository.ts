@@ -28,6 +28,7 @@ export default class Repository {
     }
 
     public sync(): Promise<void> {
+        this.directories.forEach((directory) => directory.reset());
         return this.downloadConfigFile(this.configUrl)
             .then((configFilePath) => this.unpackConfigFile(configFilePath))
             .then((metaFilesDirPath) => this.parseMetaData(metaFilesDirPath))
@@ -61,8 +62,8 @@ export default class Repository {
                             let directory: Directory = this.directories.get(directoryName);
                             if (!directory) {
                                 directory = new Directory(this, directoryName);
-                                directory.on("file-checkout", this.onFileCheckout);
-                                directory.on("file-checkouted", this.onFileCheckouted);
+                                directory.on("file-checkout", this.onFileCheckout.bind(this));
+                                directory.on("file-checkouted", this.onFileCheckouted.bind(this));
                                 this.directories.set(directoryName, directory);
                             }
                             directory.addRemoteFile(new SyncFile(
@@ -73,6 +74,8 @@ export default class Repository {
                                         .filter((v: string, i: number) => i),
                                 ),
                                 file.getChild("Md5").toString(),
+                                null,
+                                null,
                                 +file.getChild("Size").toString(),
                                 file.getChild("Url").toString(),
                             ));
@@ -88,18 +91,23 @@ export default class Repository {
         this.checkoutSize = 0;
         this.checkoutedSize = 0;
         directories.forEach((directory) => {
-            promises.push(directory.scan().then(() => directory.sync()));
+            if (directory.hasRemoteFiles()) {
+                promises.push(directory.scan().then(() => directory.sync()));
+            } else {
+                console.log("DEL DIRECTORY", `${directory.path}`);
+                directory.remove();
+            }
         });
         return Promise.all(promises);
     }
 
     private onFileCheckout(syncFile: SyncFile) {
-        this.checkoutSize += syncFile.size;
+        this.checkoutSize += syncFile.archiveSize;
         this.logProgress();
     }
 
     private onFileCheckouted(syncFile: SyncFile) {
-        this.checkoutedSize += syncFile.size;
+        this.checkoutedSize += syncFile.archiveSize;
         this.logProgress();
     }
 
