@@ -8,7 +8,7 @@
     "start": "npm-run-all --parallel watch:server watch:build",
     "watch:server": "nodemon --inspect-brk --watch ./dist ./dist/cli.js",
     "watch:build": "webpack --watch --devtool inline-source-map --mode development",
-    "build": "webpack",
+    "build": "webpack --mode production",
     "prepublish": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
