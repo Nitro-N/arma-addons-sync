@@ -94,7 +94,6 @@ export default class Host {
                 }
             } else {
                 getUri(`${this.urlString}/${data.urlPath}`,
-                    data.filePath,
                     { login: this.login, password: this.password },
                     (err: any, rs: stream.Readable) => {
                         resolve({ err, rs });

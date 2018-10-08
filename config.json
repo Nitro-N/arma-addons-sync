@@ -3,8 +3,8 @@
   "useMd5Cache": true,
   "repositories": [
     {
-      "url": "ftp://armaplayer:1@46.188.49.216:21021/addons/Repo_TSG_A3/Tushino.7z",
-      "targetDir": "D:\\TA"
+      "url": "http://195.19.11.223:8443/repo_tsg/Tushino.7z",
+      "targetDir": "D:\\TushinoAddons"
     }
   ]
 }
