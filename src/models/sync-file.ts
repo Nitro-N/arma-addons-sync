@@ -5,7 +5,6 @@ import HashGenerator from "../utils/hash-generator";
 import Downloader from "../utils/downloader";
 import Archivator from "../utils/archivator";
 import ErrnoException = NodeJS.ErrnoException;
-import { stringify } from "querystring";
 
 export interface IFile {
     md5: string;
@@ -101,7 +100,8 @@ export default class SyncFile implements IFile {
                         .then(() => {
                             console.log("EXTRACTED", this.relativePath);
                             return downloadedFilePath;
-                        });
+                        })
+                        .catch((e) => reject(e));
                 })
                 .then((downloadedFilePath) => fs.unlink(downloadedFilePath, (err: ErrnoException) => {
                     if (err) {
@@ -116,7 +116,8 @@ export default class SyncFile implements IFile {
                     } else {
                         resolve();
                     }
-                });
+                })
+                .catch((e) => reject(e));
         });
     }
 
