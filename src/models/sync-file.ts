@@ -97,10 +97,14 @@ export default class SyncFile implements IFile {
             Downloader.download(`${repository.rootUrl}/${this.url}`, tempDir)
                 .then((downloadedFilePath) => {
                     console.log("DOWNLOADED", this.relativePath);
-                    return Archivator.unpack(downloadedFilePath,
-                        FileManager.mergePathWithExists(pathUtil.dirname(this.absolutePath)))
+                    const absolutePath = pathUtil.dirname(this.absolutePath);
+                    const mergedPath = FileManager.mergePathWithExists(absolutePath);
+                    return Archivator.unpack(downloadedFilePath, mergedPath)
                         .then(() => {
                             console.log("EXTRACTED", this.relativePath);
+                            if (mergedPath !== absolutePath) {
+                                console.log("to =>", mergedPath);
+                            }
                             return downloadedFilePath;
                         })
                         .catch((e) => reject(e));

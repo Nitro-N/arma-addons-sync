@@ -42,17 +42,21 @@ export default class FileManager {
                 const currentPath = tempParts.join(path.sep);
 
                 if (fs.existsSync(newPath)) {
+                    tempParts.push(part);
                     return part;
                 } else if (fs.existsSync(currentPath)) {
                     const exist = fs.readdirSync(currentPath).find((name) => name.toLowerCase() === part.toLowerCase());
                     if (exist) {
+                        tempParts.push(exist);
                         return exist;
                     } else {
                         existPath = false;
+                        tempParts.push(part);
                         return part;
                     }
                 } else {
                     existPath = false;
+                    tempParts.push(part);
                     return part;
                 }
             })
