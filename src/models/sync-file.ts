@@ -5,6 +5,7 @@ import HashGenerator from "../utils/hash-generator";
 import Downloader from "../utils/downloader";
 import Archivator from "../utils/archivator";
 import ErrnoException = NodeJS.ErrnoException;
+import FileManager from "../utils/file-manager";
 
 export interface IFile {
     md5: string;
@@ -96,7 +97,8 @@ export default class SyncFile implements IFile {
             Downloader.download(`${repository.rootUrl}/${this.url}`, tempDir)
                 .then((downloadedFilePath) => {
                     console.log("DOWNLOADED", this.relativePath);
-                    return Archivator.unpack(downloadedFilePath, pathUtil.dirname(this.absolutePath))
+                    return Archivator.unpack(downloadedFilePath,
+                        FileManager.mergePathWithExists(pathUtil.dirname(this.absolutePath)))
                         .then(() => {
                             console.log("EXTRACTED", this.relativePath);
                             return downloadedFilePath;
