@@ -11,13 +11,18 @@ export default class ArmaAddonsSync {
         });
     }
 
-    public sync(): Promise<void> {
-        console.log("STARTING");
-        console.time("FINISHED");
-        const promises: Array<Promise<void>> = this.repositories
-            .map((repository: Repository) => repository.sync());
+    public sync(): Promise<any> {
+        console.time("FINISHED ALL");
+        const promises: Array<Promise<any>> = this.repositories
+            .map((repository: Repository) => {
+                console.log("STARTING " + repository.configUrl);
+                const finishedKey = "FINISHED " + repository.configUrl;
+                console.time(finishedKey);
+                const finish = () => console.timeEnd(finishedKey);
+                return repository.sync().then(() => finish(), () => { finish(); console.log("Finished with error!"); });
+            });
         return Promise.all(promises)
-            .then(() => console.timeEnd("FINISHED"))
-            .catch(console.error);
+            .catch(console.error)
+            .then(() => console.timeEnd("FINISHED ALL"));
     }
 }
