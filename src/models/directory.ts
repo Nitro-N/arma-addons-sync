@@ -119,8 +119,14 @@ export default class Directory extends EventEmitter {
     }
 
     public sync(): Promise<any[]> {
-        const remoteFiles: Map<string, SyncFile> = new Map([...this.remoteFiles.entries()].sort());
-        const localFiles: Map<string, SyncFile> = new Map([...this.localFiles.entries()].sort());
+        let remoteFiles: Map<string, SyncFile> =  new Map();
+        let localFiles: Map<string, SyncFile> = new Map();
+
+        this.remoteFiles.forEach((file, filePath) => remoteFiles.set(this.switchCase(filePath), file));
+        this.localFiles.forEach((file, filePath) => localFiles.set(this.switchCase(filePath), file));
+        remoteFiles = new Map([...remoteFiles.entries()].sort());
+        localFiles = new Map([...localFiles.entries()].sort());
+
         const promises: Array<Promise<any>> = [];
         const localFilesIterator = localFiles.entries();
         const remoteFilesIterator = remoteFiles.entries();
@@ -129,23 +135,21 @@ export default class Directory extends EventEmitter {
         while (!(remoteFilesIteratorResult.done && localFilesIteratorResult.done)) {
             const remoteEntry = remoteFilesIteratorResult.value;
             const localEntry = localFilesIteratorResult.value;
-            if (localFilesIteratorResult.done || remoteEntry && localEntry
-                && this.switchCase(remoteEntry[0]) < this.switchCase(localEntry[0])) {
-                console.log("NEW", path.join(this.name, remoteEntry[0]));
+            if (localFilesIteratorResult.done || remoteEntry && localEntry && remoteEntry[0] < localEntry[0]) {
+                console.log("NEW", path.join(this.name, remoteEntry[1].path));
                 promises.push(this.checkoutFile(remoteEntry[1]));
                 remoteFilesIteratorResult = remoteFilesIterator.next();
-            } else if (remoteFilesIteratorResult.done || remoteEntry && localEntry
-                && this.switchCase(remoteEntry[0]) > this.switchCase(localEntry[0])) {
-                console.log("DEL", path.join(this.name, localEntry[0]));
+            } else if (remoteFilesIteratorResult.done || remoteEntry && localEntry && remoteEntry[0] > localEntry[0]) {
+                console.log("DEL", path.join(this.name, localEntry[1].path));
                 promises.push(this.deleteFile(localEntry[1]));
                 localFilesIteratorResult = localFilesIterator.next();
-            } else if (this.switchCase(localEntry[0]) === this.switchCase(remoteEntry[0])) {
+            } else if (localEntry[0] === remoteEntry[0]) {
                 promises.push(localEntry[1].equals(remoteEntry[1])
                     .then((equals: boolean) => {
                         if (equals) {
                             // console.log("OK", path.join(this.name, localEntry[0]));
                         } else {
-                            console.log("UPDATE", path.join(this.name, localEntry[0]));
+                            console.log("UPDATE", path.join(this.name, localEntry[1].path));
                             return this.checkoutFile(remoteEntry[1]);
                         }
                     }));
