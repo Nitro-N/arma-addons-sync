@@ -12,6 +12,7 @@ export interface IRepositoryConfig {
 export default class Config {
     public static sZipBinPath?: string;
     public static useMd5Cache?: boolean;
+    public static ignorePathCase?: boolean = true;
     public static rescanInterval?: number = 5;
     public static tempFolderPath?: string = path.join(os.tmpdir(), packageConfig.name);
     public static repositories?: IRepositoryConfig[];

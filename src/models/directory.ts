@@ -129,15 +129,17 @@ export default class Directory extends EventEmitter {
         while (!(remoteFilesIteratorResult.done && localFilesIteratorResult.done)) {
             const remoteEntry = remoteFilesIteratorResult.value;
             const localEntry = localFilesIteratorResult.value;
-            if (localFilesIteratorResult.done || remoteEntry && localEntry && remoteEntry[0] < localEntry[0]) {
+            if (localFilesIteratorResult.done || remoteEntry && localEntry
+                && this.switchCase(remoteEntry[0]) < this.switchCase(localEntry[0])) {
                 console.log("NEW", path.join(this.name, remoteEntry[0]));
                 promises.push(this.checkoutFile(remoteEntry[1]));
                 remoteFilesIteratorResult = remoteFilesIterator.next();
-            } else if (remoteFilesIteratorResult.done || remoteEntry && localEntry && remoteEntry[0] > localEntry[0]) {
+            } else if (remoteFilesIteratorResult.done || remoteEntry && localEntry
+                && this.switchCase(remoteEntry[0]) > this.switchCase(localEntry[0])) {
                 console.log("DEL", path.join(this.name, localEntry[0]));
                 promises.push(this.deleteFile(localEntry[1]));
                 localFilesIteratorResult = localFilesIterator.next();
-            } else if (localEntry[0] === remoteEntry[0]) {
+            } else if (this.switchCase(localEntry[0]) === this.switchCase(remoteEntry[0])) {
                 promises.push(localEntry[1].equals(remoteEntry[1])
                     .then((equals: boolean) => {
                         if (equals) {
@@ -163,5 +165,9 @@ export default class Directory extends EventEmitter {
                 FileManager.removeEmptyDirs(this.path);
                 return results;
             });
+    }
+
+    private switchCase(pathString: string): string {
+        return Config.ignorePathCase ? pathString.toLowerCase() : pathString;
     }
 }

@@ -71,7 +71,7 @@ export default class Repository {
                                 path.join(
                                     ...file.getChild("Url").toString()
                                         .replace(".7z", "").split("/")
-                                        .filter((v: string, i: number) => i),
+                                        .slice(1),
                                 ),
                                 file.getChild("Md5").toString(),
                                 null,
