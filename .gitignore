@@ -62,4 +62,4 @@ typings/
 
 # project specific
 ./config.json
-./dist
+dist/
