@@ -19,7 +19,9 @@ export default class ArmaAddonsSync {
                 const finishedKey = "FINISHED " + repository.configUrl;
                 console.time(finishedKey);
                 const finish = () => console.timeEnd(finishedKey);
-                return repository.sync().then(() => finish(), () => { finish(); console.log("Finished with error!"); });
+                return repository.sync()
+                    .catch((e) => console.error("error:", e))
+                    .then(finish);
             });
         return Promise.all(promises)
             .catch(console.error)
