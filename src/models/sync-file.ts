@@ -103,7 +103,8 @@ export default class SyncFile implements IFile {
                         .then(() => {
                             console.log("EXTRACTED", this.relativePath);
                             if (mergedPath !== absolutePath) {
-                                this.path = pathUtil.relative(this.directory.path, mergedPath);
+                                const existPath = FileManager.mergePathWithExists(this.absolutePath);
+                                this.path = pathUtil.relative(this.directory.path, existPath);
                                 console.log("to =>", mergedPath);
                             }
                             return downloadedFilePath;
